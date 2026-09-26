@@ -38,23 +38,22 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-// Frontend HTML Route
+// Frontend HTML Route with Active Device Detection & Mobile Optimization
 app.get('*', (req, res) => {
   res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Bloop AI Studio - Intelligent Assistant</title>
+  <!-- Interactive-widget prevents keyboard layout distortion on mobile Chrome/Safari -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+  <title>Bloop AI Studio</title>
   
-  <!-- Mobile & Search Engine Optimization (SEO) -->
+  <!-- SEO & Mobile App Standards -->
   <meta name="description" content="Bloop AI Studio - Fast, sleek, and intelligent conversation workspace.">
-  <meta name="theme-color" content="#0d1117">
+  <meta name="theme-color" content="#0b0e14">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta property="og:title" content="Bloop AI Studio">
-  <meta property="og:description" content="Intelligent thinking, coding, and brainstorming assistant.">
-  <meta property="og:type" content="website">
+  <meta name="format-detection" content="telephone=no">
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
@@ -66,12 +65,10 @@ app.get('*', (req, res) => {
       --bg-card-hover: #1b2232;
       --bg-input: #121722;
       --border-color: #1e2638;
-      --border-glow: #38bdf844;
       --text-primary: #f1f5f9;
       --text-secondary: #8b99ad;
       --text-muted: #57657a;
       --accent-blue: #38bdf8;
-      --accent-cyan: #22d3ee;
       --sidebar-width: 270px;
     }
 
@@ -79,27 +76,32 @@ app.get('*', (req, res) => {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       -webkit-tap-highlight-color: transparent;
     }
 
-    body {
+    html, body {
+      width: 100%;
+      /* 100dvh prevents address bar jump glich on mobile */
+      height: 100dvh;
+      min-height: 100dvh;
+      overflow: hidden;
       background-color: var(--bg-main);
       color: var(--text-primary);
+    }
+
+    body {
       display: flex;
-      height: 100vh;
-      width: 100vw;
-      overflow: hidden;
       position: relative;
     }
 
-    /* Mobile Backdrop Overlay */
+    /* Mobile Overlay Backdrop */
     .sidebar-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.65);
-      backdrop-filter: blur(3px);
-      z-index: 25;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      z-index: 40;
       display: none;
       opacity: 0;
       transition: opacity 0.25s ease;
@@ -110,19 +112,20 @@ app.get('*', (req, res) => {
       opacity: 1;
     }
 
-    /* Sidebar */
+    /* Sidebar Navigation */
     aside {
       width: var(--sidebar-width);
       min-width: var(--sidebar-width);
+      height: 100%;
       background-color: var(--bg-sidebar);
       display: flex;
       flex-direction: column;
       border-right: 1px solid var(--border-color);
-      z-index: 30;
+      z-index: 50;
       transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    aside.collapsed {
+    aside.desktop-collapsed {
       margin-left: calc(-1 * var(--sidebar-width));
     }
 
@@ -152,11 +155,6 @@ app.get('*', (req, res) => {
       box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
     }
 
-    .brand-text {
-      display: flex;
-      flex-direction: column;
-    }
-
     .brand-text h1 {
       font-size: 1.05rem;
       font-weight: 700;
@@ -176,17 +174,13 @@ app.get('*', (req, res) => {
       color: var(--text-secondary);
       font-size: 1.15rem;
       cursor: pointer;
-      padding: 6px 8px;
+      padding: 8px;
       border-radius: 8px;
-      transition: color 0.15s, background-color 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    .toggle-btn:hover {
-      color: var(--text-primary);
-      background-color: var(--bg-card);
-    }
-
-    /* New Chat Button */
     .new-chat-btn {
       margin: 0.25rem 1rem 0.85rem;
       padding: 0.75rem 1rem;
@@ -200,12 +194,6 @@ app.get('*', (req, res) => {
       font-size: 0.88rem;
       font-weight: 500;
       cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .new-chat-btn:hover {
-      background-color: #1e293d;
-      border-color: #2f3d56;
     }
 
     .sidebar-section-title {
@@ -220,15 +208,6 @@ app.get('*', (req, res) => {
       align-items: center;
     }
 
-    .sidebar-section-title .count-badge {
-      background-color: #1a2233;
-      color: var(--text-secondary);
-      padding: 1px 7px;
-      border-radius: 12px;
-      font-size: 0.7rem;
-    }
-
-    /* History List */
     .chat-history {
       flex: 1;
       overflow-y: auto;
@@ -236,24 +215,19 @@ app.get('*', (req, res) => {
       display: flex;
       flex-direction: column;
       gap: 0.2rem;
+      -webkit-overflow-scrolling: touch;
     }
 
     .history-item {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0.65rem 0.8rem;
+      padding: 0.7rem 0.8rem;
       border-radius: 8px;
       cursor: pointer;
       color: var(--text-secondary);
       font-size: 0.86rem;
       gap: 0.6rem;
-      transition: all 0.15s;
-    }
-
-    .history-item i.item-icon {
-      font-size: 0.82rem;
-      color: var(--text-muted);
     }
 
     .history-item span {
@@ -263,31 +237,20 @@ app.get('*', (req, res) => {
       text-overflow: ellipsis;
     }
 
-    .history-item:hover, .history-item.active {
+    .history-item.active {
       background-color: #161e2c;
       color: var(--text-primary);
     }
 
-    .history-item.active i.item-icon {
-      color: var(--accent-blue);
-    }
-
     .delete-chat-btn {
-      opacity: 0;
       background: none;
       border: none;
       color: #ef4444;
       cursor: pointer;
-      padding: 3px 5px;
+      padding: 4px;
       border-radius: 4px;
-      transition: opacity 0.15s;
     }
 
-    .history-item:hover .delete-chat-btn {
-      opacity: 1;
-    }
-
-    /* User Profile Footer */
     .user-profile {
       padding: 0.85rem 1.1rem;
       background-color: #0d1119;
@@ -316,15 +279,9 @@ app.get('*', (req, res) => {
       font-size: 0.85rem;
     }
 
-    .profile-names {
-      display: flex;
-      flex-direction: column;
-    }
-
     .profile-names .name {
       font-size: 0.84rem;
       font-weight: 600;
-      color: var(--text-primary);
     }
 
     .status-line {
@@ -333,7 +290,6 @@ app.get('*', (req, res) => {
       gap: 0.35rem;
       font-size: 0.72rem;
       color: #22c55e;
-      font-weight: 500;
     }
 
     .status-dot {
@@ -343,50 +299,41 @@ app.get('*', (req, res) => {
       border-radius: 50%;
     }
 
-    .profile-tools {
-      display: flex;
-      gap: 0.3rem;
-    }
-
     .profile-tools button {
       background: transparent;
       border: none;
       color: var(--text-muted);
+      padding: 6px;
+      font-size: 0.95rem;
       cursor: pointer;
-      padding: 5px;
-      font-size: 0.9rem;
-      transition: color 0.15s;
     }
 
-    .profile-tools button:hover {
-      color: var(--text-primary);
-    }
-
-    /* Main Area */
+    /* Main Container */
     main {
       flex: 1;
       display: flex;
       flex-direction: column;
-      height: 100vh;
+      height: 100dvh;
       overflow: hidden;
       position: relative;
       background-color: var(--bg-main);
     }
 
-    /* Top Breadcrumb Bar */
     .top-bar {
       height: 54px;
-      padding: 0 1.25rem;
+      min-height: 54px;
+      padding: 0 1rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      z-index: 10;
     }
 
     .top-left {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 0.6rem;
     }
 
     .breadcrumbs {
@@ -407,7 +354,7 @@ app.get('*', (req, res) => {
 
     .breadcrumbs .title-crumb {
       color: var(--text-secondary);
-      max-width: 250px;
+      max-width: 180px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -416,43 +363,37 @@ app.get('*', (req, res) => {
     .top-right {
       display: flex;
       align-items: center;
-      gap: 0.65rem;
+      gap: 0.5rem;
     }
 
     .model-badge {
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       font-weight: 600;
       color: var(--accent-blue);
       background: #131d2b;
       border: 1px solid #1e314a;
-      padding: 0.32rem 0.85rem;
+      padding: 0.3rem 0.75rem;
       border-radius: 20px;
-      letter-spacing: -0.2px;
     }
 
     .top-icon-btn {
       background: transparent;
       border: none;
       color: var(--text-secondary);
-      font-size: 0.9rem;
-      cursor: pointer;
+      font-size: 0.95rem;
       padding: 6px;
-      border-radius: 6px;
-      transition: color 0.15s;
+      cursor: pointer;
     }
 
-    .top-icon-btn:hover {
-      color: #ef4444;
-    }
-
-    /* Chat Viewport */
+    /* Chat Messages Viewport */
     .messages-viewport {
       flex: 1;
       overflow-y: auto;
-      padding: 1.5rem 1rem 7.5rem;
+      padding: 1.25rem 1rem 7.5rem;
       display: flex;
       flex-direction: column;
       align-items: center;
+      -webkit-overflow-scrolling: touch;
     }
 
     .messages-container {
@@ -460,23 +401,23 @@ app.get('*', (req, res) => {
       max-width: 760px;
       display: flex;
       flex-direction: column;
-      gap: 1.5rem;
+      gap: 1.4rem;
     }
 
-    /* Center Hero State (from screenshot) */
+    /* Hero / Empty State */
     .empty-state {
-      margin-top: 5vh;
+      margin-top: 3vh;
       display: flex;
       flex-direction: column;
       align-items: center;
       text-align: center;
-      gap: 1.25rem;
+      gap: 1.1rem;
       width: 100%;
     }
 
     .hero-badge-icon {
-      width: 54px;
-      height: 54px;
+      width: 50px;
+      height: 50px;
       background: linear-gradient(135deg, #1b263b, #152238);
       border: 1px solid #233552;
       border-radius: 14px;
@@ -484,14 +425,12 @@ app.get('*', (req, res) => {
       align-items: center;
       justify-content: center;
       color: var(--accent-blue);
-      font-size: 1.45rem;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      font-size: 1.35rem;
     }
 
     .hero-title {
       font-size: 2.1rem;
       font-weight: 700;
-      letter-spacing: -0.5px;
       background: linear-gradient(135deg, #38bdf8, #818cf8);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
@@ -499,62 +438,54 @@ app.get('*', (req, res) => {
 
     .hero-subtitle {
       color: var(--text-secondary);
-      font-size: 0.96rem;
+      font-size: 0.94rem;
       max-width: 480px;
       line-height: 1.5;
     }
 
-    /* Suggestion Prompt Cards */
     .prompt-cards-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 0.85rem;
+      gap: 0.75rem;
       width: 100%;
       max-width: 680px;
-      margin-top: 1rem;
+      margin-top: 0.5rem;
     }
 
     .prompt-card {
       background-color: var(--bg-card);
       border: 1px solid var(--border-color);
-      border-radius: 14px;
-      padding: 1rem 1.15rem;
+      border-radius: 12px;
+      padding: 0.9rem 1rem;
       text-align: left;
       cursor: pointer;
       display: flex;
       flex-direction: column;
-      gap: 0.35rem;
-      transition: all 0.2s;
-    }
-
-    .prompt-card:hover {
-      background-color: var(--bg-card-hover);
-      border-color: #2b3952;
-      transform: translateY(-2px);
+      gap: 0.3rem;
+      transition: background-color 0.15s;
     }
 
     .prompt-card-title {
-      font-size: 0.88rem;
+      font-size: 0.86rem;
       font-weight: 600;
       color: var(--text-primary);
     }
 
     .prompt-card-desc {
-      font-size: 0.78rem;
+      font-size: 0.77rem;
       color: var(--text-secondary);
       line-height: 1.4;
     }
 
-    /* Message Rows */
     .message-row {
       display: flex;
       width: 100%;
       gap: 1rem;
-      animation: fadeIn 0.3s ease forwards;
+      animation: fadeIn 0.25s ease forwards;
     }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
+      from { opacity: 0; transform: translateY(4px); }
       to { opacity: 1; transform: translateY(0); }
     }
 
@@ -563,9 +494,9 @@ app.get('*', (req, res) => {
     }
 
     .bubble {
-      padding: 0.85rem 1.25rem;
+      padding: 0.8rem 1.15rem;
       border-radius: 18px;
-      font-size: 0.94rem;
+      font-size: 0.93rem;
       line-height: 1.6;
       word-break: break-word;
       white-space: pre-wrap;
@@ -575,7 +506,7 @@ app.get('*', (req, res) => {
       background-color: var(--bg-card);
       border: 1px solid var(--border-color);
       color: var(--text-primary);
-      max-width: 78%;
+      max-width: 82%;
       border-bottom-right-radius: 4px;
     }
 
@@ -603,17 +534,18 @@ app.get('*', (req, res) => {
       color: #f87171;
     }
 
-    /* Neon Pill Input Bar */
+    /* Bottom Input Bar */
     .input-wrapper {
       position: absolute;
       bottom: 0;
       left: 0;
       right: 0;
-      padding: 1.25rem;
+      padding: 0.85rem 1rem 1rem;
       background: linear-gradient(180deg, rgba(11, 14, 20, 0) 0%, var(--bg-main) 45%);
       display: flex;
       flex-direction: column;
       align-items: center;
+      z-index: 20;
     }
 
     .input-box {
@@ -622,17 +554,16 @@ app.get('*', (req, res) => {
       background-color: var(--bg-input);
       border: 1.5px solid #1f364d;
       border-radius: 36px;
-      padding: 0.55rem 0.85rem 0.55rem 1.4rem;
+      padding: 0.45rem 0.65rem 0.45rem 1.25rem;
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 0 10px rgba(56, 189, 248, 0.03);
-      transition: all 0.2s;
+      gap: 0.6rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
     }
 
     .input-box:focus-within {
       border-color: #38bdf8;
-      box-shadow: 0 0 18px rgba(56, 189, 248, 0.25);
+      box-shadow: 0 0 16px rgba(56, 189, 248, 0.25);
     }
 
     .input-box textarea {
@@ -641,11 +572,12 @@ app.get('*', (req, res) => {
       border: none;
       outline: none;
       color: var(--text-primary);
-      font-size: 0.95rem;
+      /* Font-size 16px prevents iOS Safari from automatically zooming into the page */
+      font-size: 16px;
       resize: none;
-      max-height: 120px;
+      max-height: 110px;
       line-height: 1.4;
-      padding: 0.45rem 0;
+      padding: 0.4rem 0;
     }
 
     .input-box textarea::placeholder {
@@ -653,9 +585,9 @@ app.get('*', (req, res) => {
     }
 
     .send-btn {
-      width: 38px;
-      height: 38px;
-      min-width: 38px;
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
       border-radius: 50%;
       background: #192a3e;
       border: 1px solid #284463;
@@ -665,12 +597,6 @@ app.get('*', (req, res) => {
       justify-content: center;
       cursor: pointer;
       font-size: 0.95rem;
-      transition: all 0.15s;
-    }
-
-    .send-btn:hover:not(:disabled) {
-      background: var(--accent-blue);
-      color: #0b0e14;
     }
 
     .send-btn:disabled {
@@ -679,48 +605,57 @@ app.get('*', (req, res) => {
     }
 
     .footnote {
-      margin-top: 0.55rem;
-      font-size: 0.75rem;
+      margin-top: 0.45rem;
+      font-size: 0.72rem;
       color: var(--text-muted);
       text-align: center;
     }
 
-    /* Responsive / Mobile SEO adjustments */
-    @media (max-width: 768px) {
-      aside {
-        position: fixed;
-        top: 0;
-        bottom: 0;
-        left: 0;
-        transform: translateX(-100%);
-        margin-left: 0 !important;
-      }
+    /* ------------------------------------------- */
+    /* ACTIVE DEVICE OVERRIDES (MOBILE & TABLET)   */
+    /* ------------------------------------------- */
+    body.is-mobile aside {
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      transform: translateX(-100%);
+      margin-left: 0 !important;
+      box-shadow: 6px 0 25px rgba(0, 0, 0, 0.6);
+    }
 
-      aside.mobile-open {
-        transform: translateX(0);
-      }
+    body.is-mobile aside.mobile-open {
+      transform: translateX(0);
+    }
 
-      .prompt-cards-grid {
-        grid-template-columns: 1fr;
-      }
+    body.is-mobile .prompt-cards-grid {
+      grid-template-columns: 1fr;
+    }
 
-      .hero-title {
-        font-size: 1.8rem;
-      }
+    body.is-mobile .hero-title {
+      font-size: 1.7rem;
+    }
 
-      .messages-viewport {
-        padding-bottom: 8.5rem;
-      }
+    body.is-mobile .hero-subtitle {
+      font-size: 0.88rem;
+      padding: 0 1rem;
+    }
 
-      .input-wrapper {
-        padding: 0.85rem;
-      }
+    body.is-mobile .messages-viewport {
+      padding-bottom: 7rem;
+    }
+
+    body.is-mobile .delete-chat-btn {
+      opacity: 1; /* Always visible on touch devices */
+    }
+
+    body.is-mobile .input-wrapper {
+      padding-bottom: calc(0.6rem + env(safe-area-inset-bottom, 0px));
     }
   </style>
 </head>
 <body>
 
-  <!-- Backdrop overlay for mobile drawer -->
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
   <!-- Left Sidebar -->
@@ -735,7 +670,7 @@ app.get('*', (req, res) => {
           <span>AI STUDIO</span>
         </div>
       </div>
-      <button class="toggle-btn" id="closeSidebarBtn" title="Close sidebar">
+      <button class="toggle-btn" id="closeSidebarBtn" aria-label="Close sidebar">
         <i class="fa-solid fa-bars"></i>
       </button>
     </div>
@@ -764,8 +699,7 @@ app.get('*', (req, res) => {
         </div>
       </div>
       <div class="profile-tools">
-        <button title="Settings"><i class="fa-solid fa-user-gear"></i></button>
-        <button id="clearAllBtn" title="Clear all chats"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
+        <button id="clearAllBtn" title="Clear all chats"><i class="fa-solid fa-trash-can"></i></button>
       </div>
     </div>
   </aside>
@@ -774,7 +708,7 @@ app.get('*', (req, res) => {
   <main>
     <div class="top-bar">
       <div class="top-left">
-        <button class="toggle-btn" id="openSidebarBtn" title="Toggle Sidebar">
+        <button class="toggle-btn" id="openSidebarBtn" aria-label="Toggle Sidebar">
           <i class="fa-solid fa-bars"></i>
         </button>
         <div class="breadcrumbs">
@@ -785,7 +719,7 @@ app.get('*', (req, res) => {
       </div>
       <div class="top-right">
         <div class="model-badge">Bloop 2.0 Ultra</div>
-        <button class="top-icon-btn" id="deleteCurrentBtn" title="Delete current conversation">
+        <button class="top-icon-btn" id="deleteCurrentBtn" aria-label="Delete conversation">
           <i class="fa-regular fa-trash-can"></i>
         </button>
       </div>
@@ -794,7 +728,7 @@ app.get('*', (req, res) => {
     <div class="messages-viewport" id="viewport">
       <div class="messages-container" id="messagesContainer">
         
-        <!-- Empty State Hero matching screenshot -->
+        <!-- Hero State -->
         <div class="empty-state" id="emptyState">
           <div class="hero-badge-icon">
             <i class="fa-solid fa-wand-magic-sparkles"></i>
@@ -825,11 +759,11 @@ app.get('*', (req, res) => {
       </div>
     </div>
 
-    <!-- Floating Input Form -->
+    <!-- Input Form -->
     <div class="input-wrapper">
       <div class="input-box">
         <textarea id="promptInput" rows="1" placeholder="Message Bloop..."></textarea>
-        <button id="sendBtn" class="send-btn" disabled>
+        <button id="sendBtn" class="send-btn" disabled aria-label="Send message">
           <i class="fa-solid fa-arrow-up"></i>
         </button>
       </div>
@@ -838,7 +772,30 @@ app.get('*', (req, res) => {
   </main>
 
   <script>
-    // State management
+    // ----------------------------------------------------
+    // ACTIVE DEVICE DETECTION & VIEWPORT CORRECTION
+    // ----------------------------------------------------
+    function detectDevice() {
+      const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+      const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+      const isSmallScreen = window.innerWidth <= 820;
+      const isMobileUA = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+
+      if (isMobileUA || (isTouch && isSmallScreen)) {
+        document.body.classList.add("is-mobile");
+        document.body.classList.remove("is-desktop");
+      } else {
+        document.body.classList.add("is-desktop");
+        document.body.classList.remove("is-mobile");
+      }
+    }
+
+    // Run device detection on load and resize
+    detectDevice();
+    window.addEventListener("resize", detectDevice);
+    window.addEventListener("orientationchange", detectDevice);
+
+    // App state
     let chats = JSON.parse(localStorage.getItem("bloop_chats")) || [];
     let currentChatId = null;
 
@@ -859,28 +816,31 @@ app.get('*', (req, res) => {
     const clearAllBtn = document.getElementById("clearAllBtn");
     const viewport = document.getElementById("viewport");
 
-    // Toggle Sidebar Functionality (Desktop & Mobile)
+    // Unified Drawer Toggle
     function toggleSidebar() {
-      const isMobile = window.innerWidth <= 768;
-      if (isMobile) {
+      if (document.body.classList.contains("is-mobile")) {
         sidebar.classList.toggle("mobile-open");
         sidebarOverlay.classList.toggle("active");
       } else {
-        sidebar.classList.toggle("collapsed");
+        sidebar.classList.toggle("desktop-collapsed");
+      }
+    }
+
+    function closeMobileSidebar() {
+      if (document.body.classList.contains("is-mobile")) {
+        sidebar.classList.remove("mobile-open");
+        sidebarOverlay.classList.remove("active");
       }
     }
 
     openSidebarBtn.addEventListener("click", toggleSidebar);
     closeSidebarBtn.addEventListener("click", toggleSidebar);
-    sidebarOverlay.addEventListener("click", () => {
-      sidebar.classList.remove("mobile-open");
-      sidebarOverlay.classList.remove("active");
-    });
+    sidebarOverlay.addEventListener("click", closeMobileSidebar);
 
-    // Auto-resize input
+    // Prevent virtual keyboard jump & auto-grow textarea
     promptInput.addEventListener("input", () => {
       promptInput.style.height = "auto";
-      promptInput.style.height = Math.min(promptInput.scrollHeight, 120) + "px";
+      promptInput.style.height = Math.min(promptInput.scrollHeight, 110) + "px";
       sendBtn.disabled = !promptInput.value.trim();
     });
 
@@ -905,6 +865,7 @@ app.get('*', (req, res) => {
       saveChats();
       renderChatHistory();
       renderActiveChat();
+      closeMobileSidebar();
     }
 
     function saveChats() {
@@ -921,7 +882,7 @@ app.get('*', (req, res) => {
         item.className = "history-item " + (chat.id === currentChatId ? 'active' : '');
         
         const icon = document.createElement("i");
-        icon.className = "fa-regular fa-message item-icon";
+        icon.className = "fa-regular fa-message";
         item.appendChild(icon);
 
         const titleSpan = document.createElement("span");
@@ -941,10 +902,7 @@ app.get('*', (req, res) => {
           currentChatId = chat.id;
           renderChatHistory();
           renderActiveChat();
-          if (window.innerWidth <= 768) {
-            sidebar.classList.remove("mobile-open");
-            sidebarOverlay.classList.remove("active");
-          }
+          closeMobileSidebar();
         };
 
         chatHistoryList.appendChild(item);
