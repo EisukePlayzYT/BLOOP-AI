@@ -5,12 +5,18 @@ const PORT = process.env.PORT || 3000;
 const GROQ_API_KEY = process.env.GROQ_API_KEY || "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";
 const MODEL = "openai/gpt-oss-120b";
 
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 
 // API route
 app.post('/api/chat', async (req, res) => {
   try {
     const { messages } = req.body;
+
+    // Filter messages to text-only for LLM context compatibility
+    const sanitizedMessages = (messages || []).map(m => ({
+      role: m.role,
+      content: typeof m.content === 'string' ? m.content : (m.text || '')
+    }));
 
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
@@ -23,9 +29,9 @@ app.post('/api/chat', async (req, res) => {
         messages: [
           {
             role: "system",
-            content: "You are Bloop, a custom AI assistant. Your name is strictly Bloop. Never refer to yourself as ChatGPT, OpenAI, or an assistant trained by OpenAI. If asked who you are, what your name is, or who created you, always state that you are Bloop."
+            content: "You are Bloop, a custom AI assistant. Your name is strictly Bloop. Never refer to yourself as ChatGPT, OpenAI, or an assistant trained by OpenAI. If asked who you are, what your name is, or who created you, always state that you are Bloop. If the user attaches an image or video reference, acknowledge their referenced file thoughtfully."
           },
-          ...(messages || [])
+          ...sanitizedMessages
         ],
         temperature: 0.7
       })
@@ -38,17 +44,15 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-// Frontend HTML Route with Active Device Detection & Mobile Optimization
+// Frontend HTML Route
 app.get('*', (req, res) => {
   res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- Interactive-widget prevents keyboard layout distortion on mobile Chrome/Safari -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
   <title>Bloop AI Studio</title>
   
-  <!-- SEO & Mobile App Standards -->
   <meta name="description" content="Bloop AI Studio - Fast, sleek, and intelligent conversation workspace.">
   <meta name="theme-color" content="#0b0e14">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -82,7 +86,6 @@ app.get('*', (req, res) => {
 
     html, body {
       width: 100%;
-      /* 100dvh prevents address bar jump glich on mobile */
       height: 100dvh;
       min-height: 100dvh;
       overflow: hidden;
@@ -95,7 +98,6 @@ app.get('*', (req, res) => {
       position: relative;
     }
 
-    /* Mobile Overlay Backdrop */
     .sidebar-overlay {
       position: fixed;
       inset: 0;
@@ -112,7 +114,6 @@ app.get('*', (req, res) => {
       opacity: 1;
     }
 
-    /* Sidebar Navigation */
     aside {
       width: var(--sidebar-width);
       min-width: var(--sidebar-width);
@@ -308,7 +309,6 @@ app.get('*', (req, res) => {
       cursor: pointer;
     }
 
-    /* Main Container */
     main {
       flex: 1;
       display: flex;
@@ -385,11 +385,10 @@ app.get('*', (req, res) => {
       cursor: pointer;
     }
 
-    /* Chat Messages Viewport */
     .messages-viewport {
       flex: 1;
       overflow-y: auto;
-      padding: 1.25rem 1rem 7.5rem;
+      padding: 1.25rem 1rem 8rem;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -404,7 +403,6 @@ app.get('*', (req, res) => {
       gap: 1.4rem;
     }
 
-    /* Hero / Empty State */
     .empty-state {
       margin-top: 3vh;
       display: flex;
@@ -517,6 +515,15 @@ app.get('*', (req, res) => {
       padding-left: 0;
     }
 
+    .attachment-preview-chat {
+      max-width: 100%;
+      max-height: 220px;
+      border-radius: 10px;
+      margin-bottom: 0.5rem;
+      border: 1px solid var(--border-color);
+      display: block;
+    }
+
     .typing-cursor::after {
       content: "▎";
       color: var(--accent-blue);
@@ -534,18 +541,62 @@ app.get('*', (req, res) => {
       color: #f87171;
     }
 
-    /* Bottom Input Bar */
+    /* Media Upload Attachment Strip */
     .input-wrapper {
       position: absolute;
       bottom: 0;
       left: 0;
       right: 0;
-      padding: 0.85rem 1rem 1rem;
+      padding: 0.75rem 1rem 1rem;
       background: linear-gradient(180deg, rgba(11, 14, 20, 0) 0%, var(--bg-main) 45%);
       display: flex;
       flex-direction: column;
       align-items: center;
       z-index: 20;
+    }
+
+    .attachment-strip {
+      width: 100%;
+      max-width: 740px;
+      display: none;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 0.45rem;
+      padding: 0 0.5rem;
+    }
+
+    .attachment-badge {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 0.35rem 0.65rem;
+      font-size: 0.78rem;
+      color: var(--text-primary);
+      gap: 0.5rem;
+    }
+
+    .attachment-badge img, .attachment-badge video {
+      width: 32px;
+      height: 32px;
+      object-fit: cover;
+      border-radius: 6px;
+    }
+
+    .remove-attachment-btn {
+      background: #ef4444;
+      border: none;
+      color: white;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .input-box {
@@ -554,10 +605,10 @@ app.get('*', (req, res) => {
       background-color: var(--bg-input);
       border: 1.5px solid #1f364d;
       border-radius: 36px;
-      padding: 0.45rem 0.65rem 0.45rem 1.25rem;
+      padding: 0.45rem 0.65rem 0.45rem 0.75rem;
       display: flex;
       align-items: center;
-      gap: 0.6rem;
+      gap: 0.55rem;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
     }
 
@@ -566,13 +617,32 @@ app.get('*', (req, res) => {
       box-shadow: 0 0 16px rgba(56, 189, 248, 0.25);
     }
 
+    .attach-btn {
+      width: 34px;
+      height: 34px;
+      min-width: 34px;
+      border-radius: 50%;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 1.05rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+
+    .attach-btn:hover {
+      color: var(--accent-blue);
+    }
+
     .input-box textarea {
       flex: 1;
       background: transparent;
       border: none;
       outline: none;
       color: var(--text-primary);
-      /* Font-size 16px prevents iOS Safari from automatically zooming into the page */
       font-size: 16px;
       resize: none;
       max-height: 110px;
@@ -597,11 +667,21 @@ app.get('*', (req, res) => {
       justify-content: center;
       cursor: pointer;
       font-size: 0.95rem;
+      transition: all 0.15s;
     }
 
     .send-btn:disabled {
       opacity: 0.35;
       cursor: not-allowed;
+    }
+
+    /* Stop / Pause State Styling */
+    .send-btn.stop-state {
+      background: #7f1d1d;
+      border-color: #ef4444;
+      color: #ffffff;
+      opacity: 1 !important;
+      cursor: pointer !important;
     }
 
     .footnote {
@@ -611,9 +691,7 @@ app.get('*', (req, res) => {
       text-align: center;
     }
 
-    /* ------------------------------------------- */
-    /* ACTIVE DEVICE OVERRIDES (MOBILE & TABLET)   */
-    /* ------------------------------------------- */
+    /* Device-specific rules */
     body.is-mobile aside {
       position: fixed;
       top: 0;
@@ -642,11 +720,11 @@ app.get('*', (req, res) => {
     }
 
     body.is-mobile .messages-viewport {
-      padding-bottom: 7rem;
+      padding-bottom: 7.5rem;
     }
 
     body.is-mobile .delete-chat-btn {
-      opacity: 1; /* Always visible on touch devices */
+      opacity: 1;
     }
 
     body.is-mobile .input-wrapper {
@@ -704,7 +782,7 @@ app.get('*', (req, res) => {
     </div>
   </aside>
 
-  <!-- Main View Area -->
+  <!-- Main Area -->
   <main>
     <div class="top-bar">
       <div class="top-left">
@@ -728,7 +806,6 @@ app.get('*', (req, res) => {
     <div class="messages-viewport" id="viewport">
       <div class="messages-container" id="messagesContainer">
         
-        <!-- Hero State -->
         <div class="empty-state" id="emptyState">
           <div class="hero-badge-icon">
             <i class="fa-solid fa-wand-magic-sparkles"></i>
@@ -759,12 +836,26 @@ app.get('*', (req, res) => {
       </div>
     </div>
 
-    <!-- Input Form -->
+    <!-- Hidden File Input for Image & Video -->
+    <input type="file" id="mediaFileInput" accept="image/*,video/*" style="display: none;" />
+
+    <!-- Bottom Input with Upload Preview & Pause/Send Control -->
     <div class="input-wrapper">
+      <div class="attachment-strip" id="attachmentStrip">
+        <div class="attachment-badge">
+          <div id="attachmentPreviewSlot"></div>
+          <span id="attachmentNameSlot">attachment</span>
+          <button class="remove-attachment-btn" id="removeAttachmentBtn" type="button">&times;</button>
+        </div>
+      </div>
+
       <div class="input-box">
+        <button class="attach-btn" id="triggerUploadBtn" type="button" title="Attach image or video reference">
+          <i class="fa-solid fa-paperclip"></i>
+        </button>
         <textarea id="promptInput" rows="1" placeholder="Message Bloop..."></textarea>
-        <button id="sendBtn" class="send-btn" disabled aria-label="Send message">
-          <i class="fa-solid fa-arrow-up"></i>
+        <button id="sendBtn" class="send-btn" disabled aria-label="Send or stop">
+          <i class="fa-solid fa-arrow-up" id="sendBtnIcon"></i>
         </button>
       </div>
       <div class="footnote">Bloop may produce inaccurate information. Always verify critical facts.</div>
@@ -772,9 +863,7 @@ app.get('*', (req, res) => {
   </main>
 
   <script>
-    // ----------------------------------------------------
-    // ACTIVE DEVICE DETECTION & VIEWPORT CORRECTION
-    // ----------------------------------------------------
+    // Device detection
     function detectDevice() {
       const userAgent = navigator.userAgent || navigator.vendor || window.opera;
       const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
@@ -789,17 +878,18 @@ app.get('*', (req, res) => {
         document.body.classList.remove("is-mobile");
       }
     }
-
-    // Run device detection on load and resize
     detectDevice();
     window.addEventListener("resize", detectDevice);
     window.addEventListener("orientationchange", detectDevice);
 
-    // App state
+    // State
     let chats = JSON.parse(localStorage.getItem("bloop_chats")) || [];
     let currentChatId = null;
+    let isGenerating = false;
+    let currentAbortController = null;
+    let pendingMedia = null; // Stores { type: 'image'|'video', dataUrl, name }
 
-    // Elements
+    // DOM Elements
     const sidebar = document.getElementById("sidebar");
     const sidebarOverlay = document.getElementById("sidebarOverlay");
     const openSidebarBtn = document.getElementById("openSidebarBtn");
@@ -808,6 +898,7 @@ app.get('*', (req, res) => {
     const emptyState = document.getElementById("emptyState");
     const promptInput = document.getElementById("promptInput");
     const sendBtn = document.getElementById("sendBtn");
+    const sendBtnIcon = document.getElementById("sendBtnIcon");
     const chatHistoryList = document.getElementById("chatHistoryList");
     const chatCount = document.getElementById("chatCount");
     const newChatBtn = document.getElementById("newChatBtn");
@@ -816,7 +907,15 @@ app.get('*', (req, res) => {
     const clearAllBtn = document.getElementById("clearAllBtn");
     const viewport = document.getElementById("viewport");
 
-    // Unified Drawer Toggle
+    // Upload Elements
+    const mediaFileInput = document.getElementById("mediaFileInput");
+    const triggerUploadBtn = document.getElementById("triggerUploadBtn");
+    const attachmentStrip = document.getElementById("attachmentStrip");
+    const attachmentPreviewSlot = document.getElementById("attachmentPreviewSlot");
+    const attachmentNameSlot = document.getElementById("attachmentNameSlot");
+    const removeAttachmentBtn = document.getElementById("removeAttachmentBtn");
+
+    // Drawer Toggles
     function toggleSidebar() {
       if (document.body.classList.contains("is-mobile")) {
         sidebar.classList.toggle("mobile-open");
@@ -837,25 +936,99 @@ app.get('*', (req, res) => {
     closeSidebarBtn.addEventListener("click", toggleSidebar);
     sidebarOverlay.addEventListener("click", closeMobileSidebar);
 
-    // Prevent virtual keyboard jump & auto-grow textarea
+    // File Upload Handler
+    triggerUploadBtn.addEventListener("click", () => mediaFileInput.click());
+
+    mediaFileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const isVideo = file.type.startsWith("video/");
+      const isImage = file.type.startsWith("image/");
+      if (!isVideo && !isImage) {
+        alert("Please select an image or video file.");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (loadEvent) => {
+        pendingMedia = {
+          type: isVideo ? "video" : "image",
+          dataUrl: loadEvent.target.result,
+          name: file.name
+        };
+
+        attachmentPreviewSlot.innerHTML = isVideo 
+          ? `<video src="${pendingMedia.dataUrl}"></video>`
+          : `<img src="${pendingMedia.dataUrl}" alt="Preview" />`;
+        
+        attachmentNameSlot.textContent = file.name.length > 18 ? file.name.slice(0, 18) + '...' : file.name;
+        attachmentStrip.style.display = "flex";
+        sendBtn.disabled = false;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    removeAttachmentBtn.addEventListener("click", () => {
+      pendingMedia = null;
+      mediaFileInput.value = "";
+      attachmentStrip.style.display = "none";
+      updateSendButtonState();
+    });
+
+    // Auto-resize input & send state
+    function updateSendButtonState() {
+      if (isGenerating) return;
+      const hasText = Boolean(promptInput.value.trim());
+      const hasMedia = Boolean(pendingMedia);
+      sendBtn.disabled = !(hasText || hasMedia);
+    }
+
     promptInput.addEventListener("input", () => {
       promptInput.style.height = "auto";
       promptInput.style.height = Math.min(promptInput.scrollHeight, 110) + "px";
-      sendBtn.disabled = !promptInput.value.trim();
+      updateSendButtonState();
     });
 
     promptInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
-        if (promptInput.value.trim()) handleSend();
+        if (!isGenerating && (promptInput.value.trim() || pendingMedia)) {
+          handleSend();
+        }
       }
     });
 
-    sendBtn.addEventListener("click", handleSend);
+    // Switch Send / Stop Button State
+    function setGeneratingState(generating) {
+      isGenerating = generating;
+      if (generating) {
+        sendBtn.disabled = false;
+        sendBtn.classList.add("stop-state");
+        sendBtnIcon.className = "fa-solid fa-square";
+        promptInput.disabled = true;
+      } else {
+        sendBtn.classList.remove("stop-state");
+        sendBtnIcon.className = "fa-solid fa-arrow-up";
+        promptInput.disabled = false;
+        updateSendButtonState();
+      }
+    }
+
+    sendBtn.addEventListener("click", () => {
+      if (isGenerating) {
+        // Stop / Pause generation immediately
+        if (currentAbortController) {
+          currentAbortController.abort();
+        }
+      } else {
+        handleSend();
+      }
+    });
 
     function sendPrompt(text) {
       promptInput.value = text;
-      sendBtn.disabled = false;
+      updateSendButtonState();
       handleSend();
     }
 
@@ -944,30 +1117,55 @@ app.get('*', (req, res) => {
 
       emptyState.style.display = "none";
       breadcrumbTitle.textContent = currentChat.title;
-      currentChat.messages.forEach(msg => appendBubble(msg.role, msg.content));
+      currentChat.messages.forEach(msg => appendBubble(msg.role, msg.content, false, msg.media));
       scrollBottom();
     }
 
-    function appendBubble(role, content, isError = false) {
+    function appendBubble(role, content, isError = false, media = null) {
       const row = document.createElement("div");
       row.className = "message-row " + role;
       const bubble = document.createElement("div");
       bubble.className = "bubble " + (isError ? 'error-bubble' : '');
-      bubble.textContent = content;
+
+      if (media && media.dataUrl) {
+        if (media.type === 'video') {
+          const vid = document.createElement("video");
+          vid.src = media.dataUrl;
+          vid.controls = true;
+          vid.className = "attachment-preview-chat";
+          bubble.appendChild(vid);
+        } else {
+          const img = document.createElement("img");
+          img.src = media.dataUrl;
+          img.className = "attachment-preview-chat";
+          bubble.appendChild(img);
+        }
+      }
+
+      const textSpan = document.createElement("span");
+      textSpan.className = "bubble-text";
+      textSpan.textContent = content;
+      bubble.appendChild(textSpan);
+
       row.appendChild(bubble);
       messagesContainer.appendChild(row);
       scrollBottom();
-      return bubble;
+      return textSpan;
     }
 
-    async function streamText(element, fullText) {
+    // Stream text word-by-word with abort capability
+    async function streamText(element, fullText, signal) {
       element.textContent = "";
       element.classList.add("typing-cursor");
       const words = fullText.split(/(\\s+)/);
+
       for (let i = 0; i < words.length; i++) {
+        if (signal && signal.aborted) {
+          break; // Stop immediately when user hits pause
+        }
         element.textContent += words[i];
         scrollBottom();
-        await new Promise(r => setTimeout(r, 18));
+        await new Promise(r => setTimeout(r, 16));
       }
       element.classList.remove("typing-cursor");
     }
@@ -978,31 +1176,55 @@ app.get('*', (req, res) => {
 
     async function handleSend() {
       const text = promptInput.value.trim();
-      if (!text) return;
+      const mediaToSend = pendingMedia;
+
+      if (!text && !mediaToSend) return;
 
       if (!currentChatId) createNewChat();
       const activeChat = chats.find(c => c.id === currentChatId);
 
+      const displayPrompt = text || (mediaToSend ? `[Attached ${mediaToSend.type}:${mediaToSend.name}]` : "");
+
       if (activeChat.messages.length === 0) {
-        activeChat.title = text.length > 25 ? text.slice(0, 25) + "..." : text;
+        activeChat.title = displayPrompt.length > 25 ? displayPrompt.slice(0, 25) + "..." : displayPrompt;
         breadcrumbTitle.textContent = activeChat.title;
         emptyState.style.display = "none";
         renderChatHistory();
       }
 
-      activeChat.messages.push({ role: "user", content: text });
-      appendBubble("user", text);
+      // Add to conversation
+      const userMessageObj = { 
+        role: "user", 
+        content: text, 
+        media: mediaToSend 
+      };
+      activeChat.messages.push(userMessageObj);
+      appendBubble("user", text, false, mediaToSend);
+
+      // Reset form
       promptInput.value = "";
       promptInput.style.height = "auto";
-      sendBtn.disabled = true;
+      pendingMedia = null;
+      mediaFileInput.value = "";
+      attachmentStrip.style.display = "none";
 
-      const assistantBubble = appendBubble("assistant", "Thinking...");
+      // Enter generating state with AbortController
+      currentAbortController = new AbortController();
+      setGeneratingState(true);
+
+      const assistantTextElement = appendBubble("assistant", "Thinking...");
 
       try {
         const response = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: activeChat.messages })
+          body: JSON.stringify({ 
+            messages: activeChat.messages.map(m => ({
+              role: m.role,
+              content: m.content + (m.media ? ` (Reference file: ${m.media.name})` : "")
+            }))
+          }),
+          signal: currentAbortController.signal
         });
 
         if (!response.ok) {
@@ -1013,15 +1235,26 @@ app.get('*', (req, res) => {
         const data = await response.json();
         const reply = data.choices[0].message.content;
 
-        await streamText(assistantBubble, reply);
-        activeChat.messages.push({ role: "assistant", content: reply });
+        await streamText(assistantTextElement, reply, currentAbortController.signal);
+        
+        // Save the produced text (even if paused early)
+        activeChat.messages.push({ role: "assistant", content: assistantTextElement.textContent });
         saveChats();
+
       } catch (err) {
-        assistantBubble.classList.remove("typing-cursor");
-        assistantBubble.classList.add("error-bubble");
-        assistantBubble.textContent = "Error: " + err.message;
+        assistantTextElement.classList.remove("typing-cursor");
+        if (err.name === 'AbortError') {
+          // Graceful pause indicator
+          assistantTextElement.textContent += " [Paused]";
+          activeChat.messages.push({ role: "assistant", content: assistantTextElement.textContent });
+          saveChats();
+        } else {
+          assistantTextElement.parentElement.classList.add("error-bubble");
+          assistantTextElement.textContent = "Error: " + err.message;
+        }
       } finally {
-        sendBtn.disabled = false;
+        setGeneratingState(false);
+        currentAbortController = null;
         promptInput.focus();
         scrollBottom();
       }
